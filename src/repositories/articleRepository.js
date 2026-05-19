@@ -7,6 +7,11 @@ function normalizeDate(dateText) {
   return d.toISOString().slice(0, 10);
 }
 
+function normalizeSearchType(type) {
+  const allowed = new Set(["title", "tag", "reflection", "note"]);
+  return allowed.has(type) ? type : "title";
+}
+
 async function createArticle(article) {
   const createdAt = new Date().toISOString();
   const publishDate = normalizeDate(article.publish_date);
@@ -139,6 +144,47 @@ async function listArticles(filter = {}) {
       )`
     );
     params.push(filter.tagName);
+  }
+
+  if (String(filter.keyword || "").trim()) {
+    const like = `%${String(filter.keyword).trim()}%`;
+    const searchType = normalizeSearchType(filter.searchType);
+
+    if (searchType === "tag") {
+      where.push(
+        `EXISTS (
+          SELECT 1
+          FROM ArticleTag at
+          JOIN Tag t ON t.id = at.tag_id
+          WHERE at.article_id = Article.id
+            AND t.name LIKE ? COLLATE NOCASE
+        )`
+      );
+      params.push(like);
+    } else if (searchType === "reflection") {
+      where.push(
+        `EXISTS (
+          SELECT 1
+          FROM ArticleReflection ar
+          WHERE ar.article_id = Article.id
+            AND ar.content LIKE ? COLLATE NOCASE
+        )`
+      );
+      params.push(like);
+    } else if (searchType === "note") {
+      where.push(
+        `EXISTS (
+          SELECT 1
+          FROM ArticleNote an
+          WHERE an.article_id = Article.id
+            AND an.content LIKE ? COLLATE NOCASE
+        )`
+      );
+      params.push(like);
+    } else {
+      where.push("Article.title LIKE ? COLLATE NOCASE");
+      params.push(like);
+    }
   }
 
   const sql = `

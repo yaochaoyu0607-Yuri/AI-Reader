@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const sqlite3 = require("sqlite3").verbose();
 const { XMLParser } = require("fast-xml-parser");
 const YAML = require("yaml");
 const articleRepo = require("../repositories/articleRepository");
@@ -123,6 +124,55 @@ function resolveWeMpRssWxLicPath() {
   ].filter(Boolean);
 
   return candidates.find((filePath) => fs.existsSync(filePath)) || "";
+}
+
+function resolveWeMpRssDbPath() {
+  const wxLicPath = resolveWeMpRssWxLicPath();
+  const wxLicDir = wxLicPath ? path.dirname(wxLicPath) : "";
+  const candidates = [
+    wxLicDir ? path.join(wxLicDir, "db.db") : "",
+    path.resolve(__dirname, "../../../../02_项目数据/we-mp-rss-data/db.db"),
+    path.resolve(process.cwd(), "../02_项目数据/we-mp-rss-data/db.db"),
+  ].filter(Boolean);
+  return candidates.find((filePath) => fs.existsSync(filePath)) || "";
+}
+
+function readSqliteAll(dbPath, sql, params = []) {
+  return new Promise((resolve, reject) => {
+    const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY, (openError) => {
+      if (openError) {
+        reject(openError);
+      }
+    });
+    db.all(sql, params, (error, rows) => {
+      db.close();
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve(rows || []);
+    });
+  });
+}
+
+async function listFeedsFromLocalDb() {
+  const dbPath = resolveWeMpRssDbPath();
+  if (!dbPath) return [];
+  const rows = await readSqliteAll(
+    dbPath,
+    `
+      SELECT id, mp_name, status
+      FROM feeds
+      WHERE status = 1
+      ORDER BY updated_at DESC, created_at DESC
+    `
+  );
+  return rows
+    .map((row) => ({
+      id: row.id || "",
+      name: row.mp_name || "未知公众号",
+    }))
+    .filter((item) => Boolean(item.id));
 }
 
 function loadWeMpRssWxAuth() {
@@ -347,6 +397,16 @@ async function listFeeds(baseUrl) {
   allFeeds.forEach((f) => {
     if (!dedup.has(f.id)) dedup.set(f.id, f);
   });
+  try {
+    const localFeeds = await listFeedsFromLocalDb();
+    localFeeds.forEach((feed) => {
+      if (!dedup.has(feed.id)) {
+        dedup.set(feed.id, feed);
+      }
+    });
+  } catch (_error) {
+    // Ignore local db fallback errors and keep rss result.
+  }
   return Array.from(dedup.values());
 }
 
@@ -412,8 +472,44 @@ async function fetchFeedArticles(
   }
 }
 
+async function fetchAllFeedArticles(baseUrl, feedId, sourceName, pageSize, options = {}) {
+  const normalizedPageSize = Math.max(1, Math.min(100, Number(pageSize || 100)));
+  const seen = new Set();
+  const allItems = [];
+
+  const pushItems = (items = []) => {
+    items.forEach((item) => {
+      const key = item.url || `${item.title}:${item.publish_date}:${item.source}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      allItems.push(item);
+    });
+  };
+
+  if (options.refreshRemote) {
+    const latestItems = await fetchFeedArticles(baseUrl, feedId, sourceName, normalizedPageSize, 0, {
+      refreshRemote: true,
+    });
+    pushItems(latestItems);
+  }
+
+  for (let pageIndex = 0; pageIndex < 500; pageIndex += 1) {
+    const offset = pageIndex * normalizedPageSize;
+    const pageItems = await fetchFeedArticles(baseUrl, feedId, sourceName, normalizedPageSize, offset, {
+      refreshRemote: false,
+    });
+    if (!pageItems.length) break;
+    pushItems(pageItems);
+    if (pageItems.length < normalizedPageSize) break;
+  }
+
+  return allItems;
+}
+
 async function syncOneFeed(baseUrl, feedId, sourceName, limit, options = {}) {
-  const mapped = await fetchFeedArticles(baseUrl, feedId, sourceName, limit, 0, options);
+  const mapped = options.syncAll
+    ? await fetchAllFeedArticles(baseUrl, feedId, sourceName, limit, options)
+    : await fetchFeedArticles(baseUrl, feedId, sourceName, limit, 0, options);
 
   let inserted = 0;
   let ignored = 0;
@@ -505,6 +601,7 @@ async function syncFromWeMpRss(options = {}) {
   const baseUrl = (options.base_url || "http://127.0.0.1:8001").replace(/\/+$/, "");
   const perFeedLimit = Math.max(1, Math.min(100, Number(options.limit || 30)));
   const refreshRemote = Boolean(options.refresh_remote);
+  const syncAll = Boolean(options.sync_all);
 
   let targetFeeds = [];
   if (Array.isArray(options.feed_ids) && options.feed_ids.length > 0) {
@@ -525,6 +622,7 @@ async function syncFromWeMpRss(options = {}) {
   for (const feed of targetFeeds) {
     const result = await syncOneFeed(baseUrl, feed.id, feed.name, perFeedLimit, {
       refreshRemote,
+      syncAll,
     });
     totalInserted += result.inserted;
     totalIgnored += result.ignored;
@@ -535,6 +633,7 @@ async function syncFromWeMpRss(options = {}) {
       feed_id: feed.id,
       feed_name: feed.name,
       refreshed_remote: refreshRemote,
+      sync_all: syncAll,
       inserted: result.inserted,
       ignored: result.ignored,
       errors: result.errors,
@@ -545,6 +644,7 @@ async function syncFromWeMpRss(options = {}) {
     base_url: baseUrl,
     feed_count: targetFeeds.length,
     refresh_remote: refreshRemote,
+    sync_all: syncAll,
     refreshed_feeds: refreshedFeeds,
     inserted: totalInserted,
     ignored: totalIgnored,

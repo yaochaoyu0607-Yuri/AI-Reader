@@ -1,9 +1,14 @@
 const state = {
+  allArticles: [],
   articles: [],
   tags: [],
   selectedTagId: "",
+  selectedSource: "",
+  searchKeyword: "",
+  searchType: "title",
   showUnreadOnly: false,
   showStarOnly: false,
+  manageTagKeyword: "",
   stats: null,
   currentArticle: null,
   pendingDeleteTagId: null,
@@ -21,10 +26,26 @@ const state = {
   tagSuggestActiveIdx: -1,
 };
 
+const todoState = {
+  items: [],
+};
+
 const el = {
   stats: document.getElementById("stats"),
   feed: document.getElementById("feed"),
   tagStrip: document.getElementById("tagStrip"),
+  articleSourceFilter: document.getElementById("articleSourceFilter"),
+  articleSearchType: document.getElementById("articleSearchType"),
+  articleSearchInput: document.getElementById("articleSearchInput"),
+  articleSearchBtn: document.getElementById("articleSearchBtn"),
+  articleSearchClearBtn: document.getElementById("articleSearchClearBtn"),
+  articleSearchStatus: document.getElementById("articleSearchStatus"),
+  todoStatsText: document.getElementById("todoStatsText"),
+  todoInput: document.getElementById("todoInput"),
+  todoAddBtn: document.getElementById("todoAddBtn"),
+  todoList: document.getElementById("todoList"),
+  todoClearDoneBtn: document.getElementById("todoClearDoneBtn"),
+  todoClearAllBtn: document.getElementById("todoClearAllBtn"),
   aiSettingsBtn: document.getElementById("aiSettingsBtn"),
   tagManageBtn: document.getElementById("tagManageBtn"),
   notesCenterBtn: document.getElementById("notesCenterBtn"),
@@ -75,6 +96,8 @@ const el = {
   tagManageDialog: document.getElementById("tagManageDialog"),
   manageNewTagName: document.getElementById("manageNewTagName"),
   manageCreateTagBtn: document.getElementById("manageCreateTagBtn"),
+  manageTagSearchInput: document.getElementById("manageTagSearchInput"),
+  manageTagSearchClearBtn: document.getElementById("manageTagSearchClearBtn"),
   manageTagList: document.getElementById("manageTagList"),
   closeTagManageBtn: document.getElementById("closeTagManageBtn"),
   notesCenterDialog: document.getElementById("notesCenterDialog"),
@@ -128,12 +151,74 @@ const el = {
   closeAiSettingsBtn: document.getElementById("closeAiSettingsBtn"),
 };
 
+function loadTodos() {
+  try {
+    const raw = localStorage.getItem("todoItems");
+    const arr = raw ? JSON.parse(raw) : [];
+    todoState.items = Array.isArray(arr) ? arr : [];
+  } catch (_error) {
+    todoState.items = [];
+  }
+}
+
+function saveTodos() {
+  localStorage.setItem("todoItems", JSON.stringify(todoState.items));
+}
+
+function renderTodos() {
+  if (!el.todoList || !el.todoStatsText) return;
+  const total = todoState.items.length;
+  const done = todoState.items.filter((item) => item.done).length;
+  el.todoStatsText.textContent = `${total} 项（已完成 ${done}）`;
+  if (!total) {
+    el.todoList.textContent = "暂无任务";
+    return;
+  }
+  el.todoList.innerHTML = todoState.items
+    .map(
+      (item) => `<div class="todo-item ${item.done ? "done" : ""}" data-id="${item.id}">
+        <input type="checkbox" ${item.done ? "checked" : ""} data-action="toggle" />
+        <div class="todo-text">${escapeHtml(item.text)}</div>
+        <button class="alt danger" type="button" data-action="delete">删</button>
+      </div>`
+    )
+    .join("");
+}
+
+function addTodo(text) {
+  const clean = String(text || "").trim();
+  if (!clean) return false;
+  todoState.items.unshift({
+    id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
+    text: clean,
+    done: false,
+    created_at: new Date().toISOString(),
+  });
+  saveTodos();
+  renderTodos();
+  return true;
+}
+
 async function request(url, options = {}) {
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
     ...options,
   });
-  const data = await res.json();
+  const rawText = await res.text();
+  let data = null;
+  try {
+    data = rawText ? JSON.parse(rawText) : null;
+  } catch (_error) {
+    const text = rawText.replace(/\s+/g, " ");
+    const isHtml = /<!doctype html>|<html/i.test(text);
+    if (isHtml) {
+      throw new Error(`接口 ${url} 返回了 HTML 页面而不是 JSON，请重启服务后重试。`);
+    }
+    throw new Error(`接口 ${url} 返回非 JSON（${res.status} ${res.statusText}）`);
+  }
+  if (!data || typeof data !== "object") {
+    throw new Error(`接口响应格式错误（${res.status} ${res.statusText}）`);
+  }
   if (!res.ok || !data.success) {
     throw new Error(data.error || "请求失败");
   }
@@ -154,6 +239,130 @@ async function ensureReflectionForRead(articleId) {
 
 function renderStats(stats) {
   el.stats.textContent = `今日未读 ${stats.unread_today} ｜ 已读 ${stats.read_articles} ｜ 总文章 ${stats.total_articles} ｜ 完成率 ${stats.completion_rate}%`;
+}
+
+function getArticleSearchTypeLabel(type = state.searchType) {
+  const map = {
+    title: "标题",
+    tag: "标签",
+    reflection: "感想",
+    note: "笔记",
+  };
+  return map[type] || "标题";
+}
+
+function getArticleSearchPlaceholder(type = state.searchType) {
+  const map = {
+    title: "输入标题关键词检索文章",
+    tag: "输入标签关键词检索文章",
+    reflection: "输入感想关键词检索文章",
+    note: "输入笔记关键词检索文章",
+  };
+  return map[type] || map.title;
+}
+
+function getAvailableSources() {
+  return [...new Set((state.allArticles || []).map((item) => String(item.source || "").trim()).filter(Boolean))].sort(
+    (a, b) => a.localeCompare(b, "zh-CN")
+  );
+}
+
+function syncArticleSearchControls() {
+  if (el.articleSourceFilter) {
+    const sources = getAvailableSources();
+    el.articleSourceFilter.innerHTML =
+      '<option value="">全部来源</option>' +
+      sources
+        .map(
+          (source) =>
+            `<option value="${escapeHtml(source)}" ${
+              source === state.selectedSource ? "selected" : ""
+            }>${escapeHtml(source)}</option>`
+        )
+        .join("");
+    el.articleSourceFilter.value = state.selectedSource;
+  }
+  if (el.articleSearchType) {
+    el.articleSearchType.value = state.searchType;
+  }
+  if (el.articleSearchInput) {
+    el.articleSearchInput.placeholder = getArticleSearchPlaceholder();
+    el.articleSearchInput.value = state.searchKeyword;
+  }
+}
+
+function hasActiveFeedFilters() {
+  return Boolean(
+    String(state.searchKeyword || "").trim() ||
+      String(state.selectedSource || "").trim() ||
+      String(state.selectedTagId || "").trim() ||
+      state.showUnreadOnly ||
+      state.showStarOnly
+  );
+}
+
+function includesKeyword(text, keyword) {
+  const normalizedKeyword = String(keyword || "").trim().toLowerCase();
+  if (!normalizedKeyword) return true;
+  return String(text || "").toLowerCase().includes(normalizedKeyword);
+}
+
+async function applySearchFilterToArticles(list, keyword) {
+  const normalizedKeyword = String(keyword || "").trim();
+  if (!normalizedKeyword) return list;
+
+  if (state.searchType === "tag") {
+    return list.filter((article) =>
+      Array.isArray(article.tags) && article.tags.some((tag) => includesKeyword(tag.name, normalizedKeyword))
+    );
+  }
+
+  if (state.searchType === "reflection") {
+    return list.filter((article) => includesKeyword(article.reflection_content, normalizedKeyword));
+  }
+
+  if (state.searchType === "note") {
+    const params = new URLSearchParams();
+    params.set("keyword", normalizedKeyword);
+    if (state.selectedTagId) {
+      params.set("tag_id", state.selectedTagId);
+    }
+    const notes = await request(`/api/articles/notes/search?${params.toString()}`);
+    const matchedIds = new Set(notes.map((item) => Number(item.article_id)).filter(Boolean));
+    return list.filter((article) => matchedIds.has(Number(article.id)));
+  }
+
+  return list.filter((article) => includesKeyword(article.title, normalizedKeyword));
+}
+
+function renderArticleSearchStatus() {
+  if (!el.articleSearchStatus) return;
+  const parts = [];
+  const keyword = String(state.searchKeyword || "").trim();
+  const selectedTag = state.tags.find((tag) => String(tag.id) === String(state.selectedTagId || ""));
+
+  if (keyword) {
+    parts.push(`检索类型：${getArticleSearchTypeLabel()}`);
+    parts.push(`关键词：${keyword}`);
+  }
+  if (state.selectedSource) {
+    parts.push(`来源：${state.selectedSource}`);
+  }
+  if (selectedTag) {
+    parts.push(`标签：${selectedTag.name}`);
+  }
+  if (state.showUnreadOnly) {
+    parts.push("只看未读");
+  }
+  if (state.showStarOnly) {
+    parts.push("只看星标");
+  }
+
+  if (!parts.length) {
+    el.articleSearchStatus.textContent = "统一检索：全部文章";
+    return;
+  }
+  el.articleSearchStatus.textContent = `统一检索：${parts.join(" ｜ ")}（命中 ${buildFilteredList().length} 篇）`;
 }
 
 function renderLastSync(ts) {
@@ -676,10 +885,11 @@ function renderTagStrip() {
     if (aPriority !== bPriority) return aPriority - bPriority;
     return 0;
   });
+  const visibleTags = orderedTags.slice(0, 10);
 
   const chips = ['<button class="tag-button" data-tag-id="">全部</button>']
     .concat(
-      orderedTags.map(
+      visibleTags.map(
         (t) =>
           `<button class="tag-button ${t.name === "待体验" ? "priority-tag" : ""}" data-tag-id="${t.id}">
             ${t.name} (${t.article_count})
@@ -779,6 +989,9 @@ function articleCard(item) {
 
 function buildFilteredList() {
   let list = [...state.articles];
+  if (state.selectedSource) {
+    list = list.filter((a) => String(a.source || "") === state.selectedSource);
+  }
   if (state.showUnreadOnly) {
     list = list.filter((a) => !a.is_read);
   }
@@ -810,9 +1023,21 @@ function snapshotOpenDayGroups() {
 function renderFeed() {
   snapshotOpenDayGroups();
   const filtered = buildFilteredList();
+  renderArticleSearchStatus();
   const grouped = groupByDate(filtered);
   const dates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
   if (!dates.length) {
+    if (hasActiveFeedFilters()) {
+      const keyword = String(state.searchKeyword || "").trim();
+      if (keyword) {
+        el.feed.innerHTML = `<div class="empty-state">没有匹配${escapeHtml(
+          getArticleSearchTypeLabel()
+        )}关键词“${escapeHtml(keyword)}”的文章。</div>`;
+      } else {
+        el.feed.innerHTML = '<div class="empty-state">当前筛选条件下没有匹配文章。</div>';
+      }
+      return;
+    }
     if (state.stats?.total_articles > 0 && state.stats?.read_articles === state.stats?.total_articles) {
       el.feed.innerHTML = '<div class="empty-state">全部文章已读，做得不错。</div>';
     } else {
@@ -849,15 +1074,25 @@ function renderFeed() {
 }
 
 async function loadAll() {
+  const params = new URLSearchParams();
+  if (state.selectedTagId) {
+    params.set("tag_id", state.selectedTagId);
+  }
+  const articleUrl = params.toString() ? `/api/articles?${params.toString()}` : "/api/articles";
   const [stats, tags, feed] = await Promise.all([
     request("/api/tags/stats"),
     request("/api/tags"),
-    request(`/api/articles${state.selectedTagId ? `?tag_id=${state.selectedTagId}` : ""}`),
+    request(articleUrl),
   ]);
   state.stats = stats;
   state.tags = tags;
-  state.articles = feed.list;
+  state.allArticles = Array.isArray(feed.list) ? feed.list : [];
+  if (state.selectedSource && !getAvailableSources().includes(state.selectedSource)) {
+    state.selectedSource = "";
+  }
+  state.articles = await applySearchFilterToArticles(state.allArticles, state.searchKeyword);
 
+  syncArticleSearchControls();
   renderStats(stats);
   renderTagStrip();
   renderFeed();
@@ -1097,12 +1332,18 @@ async function closeDetailDialog() {
 }
 
 function renderManageTagList(tags) {
-  if (!Array.isArray(tags) || tags.length === 0) {
-    el.manageTagList.innerHTML = "暂无标签";
+  const keyword = String(state.manageTagKeyword || "").trim().toLowerCase();
+  const filtered = (Array.isArray(tags) ? tags : []).filter((tag) => {
+    if (!keyword) return true;
+    return String(tag.name || "").toLowerCase().includes(keyword);
+  });
+
+  if (!filtered.length) {
+    el.manageTagList.innerHTML = keyword ? "没有匹配的标签" : "暂无标签";
     return;
   }
 
-  el.manageTagList.innerHTML = tags
+  el.manageTagList.innerHTML = filtered
     .map(
       (t) => `
       <div class="manage-tag-row" data-tag-id="${t.id}">
@@ -1116,8 +1357,22 @@ function renderManageTagList(tags) {
     .join("");
 }
 
+async function applyHomeTagFilter(tagId) {
+  state.selectedTagId = String(tagId || "");
+  await loadAll();
+}
+
+async function applyArticleKeywordFilter(keyword) {
+  state.searchKeyword = String(keyword || "").trim();
+  syncArticleSearchControls();
+  await loadAll();
+}
+
 async function loadTagManagement() {
   const tags = await request("/api/tags");
+  if (el.manageTagSearchInput) {
+    el.manageTagSearchInput.value = state.manageTagKeyword;
+  }
   renderManageTagList(tags);
 }
 
@@ -1190,9 +1445,117 @@ async function searchReflectionsCenter() {
 el.tagStrip.addEventListener("click", async (e) => {
   const btn = e.target.closest(".tag-button");
   if (!btn) return;
-  state.selectedTagId = btn.dataset.tagId || "";
-  await loadAll();
+  await applyHomeTagFilter(btn.dataset.tagId || "");
 });
+
+if (el.articleSearchBtn) {
+  el.articleSearchBtn.addEventListener("click", async () => {
+    try {
+      await applyArticleKeywordFilter(el.articleSearchInput?.value || "");
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+}
+
+if (el.articleSearchType) {
+  el.articleSearchType.addEventListener("change", async () => {
+    state.searchType = el.articleSearchType.value || "title";
+    syncArticleSearchControls();
+    if (!String(state.searchKeyword || "").trim()) return;
+    try {
+      await loadAll();
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+}
+
+if (el.articleSourceFilter) {
+  el.articleSourceFilter.addEventListener("change", () => {
+    state.selectedSource = el.articleSourceFilter.value || "";
+    renderFeed();
+  });
+}
+
+if (el.articleSearchInput) {
+  el.articleSearchInput.addEventListener("keydown", async (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    try {
+      await applyArticleKeywordFilter(el.articleSearchInput.value);
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+}
+
+if (el.articleSearchClearBtn) {
+  el.articleSearchClearBtn.addEventListener("click", async () => {
+    try {
+      await applyArticleKeywordFilter("");
+      if (el.articleSearchInput) {
+        el.articleSearchInput.focus();
+      }
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+}
+
+if (el.todoAddBtn && el.todoInput) {
+  el.todoAddBtn.addEventListener("click", () => {
+    const ok = addTodo(el.todoInput.value);
+    if (ok) el.todoInput.value = "";
+  });
+  el.todoInput.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const ok = addTodo(el.todoInput.value);
+    if (ok) el.todoInput.value = "";
+  });
+}
+
+if (el.todoList) {
+  el.todoList.addEventListener("click", (e) => {
+    const row = e.target.closest(".todo-item[data-id]");
+    if (!row) return;
+    const id = row.dataset.id;
+    const action = e.target.getAttribute("data-action");
+    if (action !== "delete") return;
+    todoState.items = todoState.items.filter((item) => item.id !== id);
+    saveTodos();
+    renderTodos();
+  });
+  el.todoList.addEventListener("change", (e) => {
+    const row = e.target.closest(".todo-item[data-id]");
+    if (!row) return;
+    const id = row.dataset.id;
+    const action = e.target.getAttribute("data-action");
+    if (action !== "toggle") return;
+    todoState.items = todoState.items.map((item) =>
+      item.id === id ? { ...item, done: !item.done } : item
+    );
+    saveTodos();
+    renderTodos();
+  });
+}
+
+if (el.todoClearDoneBtn) {
+  el.todoClearDoneBtn.addEventListener("click", () => {
+    todoState.items = todoState.items.filter((item) => !item.done);
+    saveTodos();
+    renderTodos();
+  });
+}
+
+if (el.todoClearAllBtn) {
+  el.todoClearAllBtn.addEventListener("click", () => {
+    todoState.items = [];
+    saveTodos();
+    renderTodos();
+  });
+}
 
 el.unreadOnlyToggle.addEventListener("change", (e) => {
   state.showUnreadOnly = e.target.checked;
@@ -1777,6 +2140,32 @@ el.manageCreateTagBtn.addEventListener("click", async () => {
   }
 });
 
+if (el.manageTagSearchInput) {
+  el.manageTagSearchInput.addEventListener("input", async (e) => {
+    state.manageTagKeyword = e.target.value.trim();
+    try {
+      await loadTagManagement();
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+}
+
+if (el.manageTagSearchClearBtn) {
+  el.manageTagSearchClearBtn.addEventListener("click", async () => {
+    state.manageTagKeyword = "";
+    if (el.manageTagSearchInput) {
+      el.manageTagSearchInput.value = "";
+      el.manageTagSearchInput.focus();
+    }
+    try {
+      await loadTagManagement();
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+}
+
 el.manageTagList.addEventListener("click", async (e) => {
   const btn = e.target.closest("button[data-action]");
   if (!btn) return;
@@ -1896,6 +2285,8 @@ renderLastSync(localStorage.getItem("lastSyncAt"));
 renderSyncLog(null);
 renderAuthStatus("待检查", "normal");
 renderAiSettingsStatus("打开 AI 设置后即可配置外部模型。");
+loadTodos();
+renderTodos();
 loadAll().catch((error) => alert(error.message));
 fetchWeMpRssAuthStatus()
   .then((status) => {

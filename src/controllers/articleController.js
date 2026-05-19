@@ -25,6 +25,8 @@ router.get("/", async (req, res) => {
     const data = await articleService.getFeed({
       tagId: req.query.tag_id ? Number(req.query.tag_id) : null,
       tagName: req.query.tag_name || null,
+      keyword: req.query.keyword || "",
+      searchType: req.query.search_type || "title",
     });
     return ok(res, data);
   } catch (error) {

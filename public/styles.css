@@ -93,6 +93,17 @@ body {
   margin-bottom: 12px;
 }
 
+.tag-filter-panel {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tag-filter-status {
+  font-size: 12px;
+  color: #667085;
+}
+
 .tag-button {
   border: 1px solid #d7deeb;
   background: #fff;
@@ -148,6 +159,61 @@ body {
   border-radius: 12px;
   padding: 12px;
   background: #fff;
+}
+
+.todo-panel {
+  margin-top: 12px;
+}
+
+.todo-inline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.todo-list {
+  margin-top: 10px;
+  border: 1px solid #e6eaf2;
+  border-radius: 10px;
+  padding: 10px;
+  background: #fff;
+  display: grid;
+  gap: 8px;
+  max-height: 240px;
+  overflow: auto;
+  font-size: 13px;
+  color: #344054;
+}
+
+.todo-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  border: 1px solid #eef2f7;
+  border-radius: 10px;
+}
+
+.todo-item.done {
+  opacity: 0.7;
+}
+
+.todo-text {
+  word-break: break-word;
+}
+
+.todo-item.done .todo-text {
+  text-decoration: line-through;
+  color: #667085;
+}
+
+.todo-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .sync-header {
@@ -475,6 +541,14 @@ dialog {
   min-width: 0;
 }
 
+#manageTagSearchClearBtn {
+  flex: 0 0 auto;
+}
+
+#homeTagSearchClearBtn {
+  flex: 0 0 auto;
+}
+
 .tag-suggest-list {
   border: 1px dashed #d0d9eb;
   border-radius: 10px;
@@ -716,6 +790,10 @@ button.danger {
   }
 
   .notes-filter {
+    grid-template-columns: 1fr;
+  }
+
+  .manage-tag-row {
     grid-template-columns: 1fr;
   }
 }

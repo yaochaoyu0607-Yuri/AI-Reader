@@ -30,6 +30,25 @@
         </div>
       </section>
 
+      <section class="tag-filter-panel">
+        <div class="inline-actions">
+          <select id="articleSourceFilter">
+            <option value="">全部来源</option>
+          </select>
+          <select id="articleSearchType">
+            <option value="title">标题</option>
+            <option value="tag">标签</option>
+            <option value="reflection">感想</option>
+            <option value="note">笔记</option>
+          </select>
+          <input id="articleSearchInput" placeholder="输入标题关键词检索文章" />
+          <button id="articleSearchBtn" type="button">搜索</button>
+          <button id="articleSearchClearBtn" class="alt" type="button">清空检索</button>
+        </div>
+        <div id="articleSearchStatus" class="tag-filter-status">
+          统一检索：请选择类型后输入关键词
+        </div>
+      </section>
       <section class="tag-strip" id="tagStrip"></section>
       <section class="content-layout">
         <section id="feed" class="content-main">
@@ -90,6 +109,25 @@
                 </div>
               </section>
             </details>
+          </section>
+
+          <section class="sync-panel todo-panel">
+            <div class="sync-header">
+              <h3>To Do</h3>
+              <span id="todoStatsText">0 项</span>
+            </div>
+            <div class="tool-item">
+              <label>添加任务</label>
+              <div class="todo-inline">
+                <input id="todoInput" placeholder="例如：读完 2 篇文章并写感想" />
+                <button id="todoAddBtn" type="button">添加</button>
+              </div>
+            </div>
+            <div id="todoList" class="todo-list">暂无任务</div>
+            <div class="todo-actions">
+              <button id="todoClearDoneBtn" class="alt" type="button">清除已完成</button>
+              <button id="todoClearAllBtn" class="alt danger" type="button">清空全部</button>
+            </div>
           </section>
         </aside>
       </section>
@@ -158,6 +196,10 @@
         <div class="tag-actions">
           <input id="manageNewTagName" placeholder="输入新标签名" />
           <button id="manageCreateTagBtn">新增标签</button>
+        </div>
+        <div class="inline-actions">
+          <input id="manageTagSearchInput" placeholder="检索标签名" />
+          <button id="manageTagSearchClearBtn" class="alt" type="button">清空检索</button>
         </div>
         <div id="manageTagList" class="manage-list">暂无标签</div>
         <footer>
