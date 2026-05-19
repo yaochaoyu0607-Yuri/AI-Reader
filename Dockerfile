@@ -1,13 +1,15 @@
-FROM node:20-alpine AS builder
+FROM node:20-bookworm-slim AS builder
 WORKDIR /app
-RUN sed -i 's#dl-cdn.alpinelinux.org#mirrors.tencent.com#g' /etc/apk/repositories \
- && apk add --no-cache python3 make g++
+RUN sed -i 's|deb.debian.org|mirrors.tencent.com|g; s|security.debian.org|mirrors.tencent.com|g' /etc/apt/sources.list.d/debian.sources \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends python3 make g++ ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 RUN npm config set registry https://registry.npmmirror.com \
  && npm config set sqlite3_binary_host_mirror https://npmmirror.com/mirrors/sqlite3 \
  && npm ci --omit=dev
 
-FROM node:20-alpine
+FROM node:20-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/node_modules ./node_modules
