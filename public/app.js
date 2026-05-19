@@ -853,9 +853,10 @@ function buildSyncPayload({ quick = false } = {}) {
       base_url: el.syncBaseUrl.value.trim() || "http://127.0.0.1:8001",
       username: el.syncUsername.value.trim() || "admin",
       password: el.syncPassword.value || "admin@123",
-      limit: 30,
+      limit: 100,
       feed_ids: [],
       refresh_remote: true,
+      sync_all: true,
     };
   }
   const rawFeedIds = el.syncFeedIds.value.trim();
@@ -1770,10 +1771,38 @@ function renderSubscribedMps(items) {
           <div class="mps-item-name">${escapeHtml(m.name)}</div>
           <div class="mps-item-intro">${escapeHtml(m.intro || "—")}</div>
         </div>
-        <button class="alt" data-action="delete-mp" data-id="${escapeHtml(m.id)}" data-name="${escapeHtml(m.name)}">取消订阅</button>
+        <div class="mps-item-actions">
+          <button data-action="crawl-history" data-id="${escapeHtml(m.id)}" data-name="${escapeHtml(m.name)}">拉历史</button>
+          <button class="alt" data-action="delete-mp" data-id="${escapeHtml(m.id)}" data-name="${escapeHtml(m.name)}">取消订阅</button>
+        </div>
       </li>`
     )
     .join("");
+}
+
+async function crawlMpHistory(mpId, name) {
+  const input = prompt(
+    `从微信拉「${name}」的历史文章。\n输入页数（每页 5 篇，例如 20 = 100 篇）：`,
+    "20"
+  );
+  if (input === null) return;
+  const pages = Math.max(1, Math.min(40, Number(input) || 10));
+  setMpsStatus(`已触发「${name}」拉 ${pages} 页 (~${pages * 5} 篇) 历史，后台爬取约需 ${Math.ceil(pages * 13 / 60)} 分钟...`, "normal");
+  try {
+    await request(`/api/integrations/we-mp-rss/mps/${encodeURIComponent(mpId)}/crawl-history?pages=${pages}`, {
+      method: "POST",
+    });
+    setMpsStatus(
+      `已触发「${name}」后台爬取 ${pages} 页 (~${pages * 5} 篇)。等几分钟后回主页点「一键更新文章」即可导入。`,
+      "success"
+    );
+  } catch (err) {
+    if (/40402|频繁/.test(err.message || "")) {
+      setMpsStatus("we-mp-rss 限制 60 秒内不能重复触发，请稍后再试", "error");
+    } else {
+      setMpsStatus(`触发失败: ${err.message}`, "error");
+    }
+  }
 }
 
 function renderSearchResults(items, subscribedIds) {
@@ -1890,6 +1919,8 @@ mpsEl.dialog.addEventListener("click", (e) => {
   if (!btn) return;
   if (btn.dataset.action === "delete-mp") {
     deleteMp(btn.dataset.id, btn.dataset.name);
+  } else if (btn.dataset.action === "crawl-history") {
+    crawlMpHistory(btn.dataset.id, btn.dataset.name);
   } else if (btn.dataset.action === "add-mp") {
     try {
       addMp(JSON.parse(btn.dataset.payload));

@@ -103,4 +103,14 @@ router.delete("/we-mp-rss/mps/:mpId", async (req, res) => {
   }
 });
 
+router.post("/we-mp-rss/mps/:mpId/crawl-history", async (req, res) => {
+  try {
+    const pages = Number(req.query.pages || req.body?.pages || 10);
+    const data = await weMpRssSyncService.triggerHistoryCrawl(req.params.mpId, pages, {});
+    return ok(res, data);
+  } catch (error) {
+    return fail(res, error, 400);
+  }
+});
+
 module.exports = router;

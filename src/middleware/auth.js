@@ -30,11 +30,8 @@ function buildAuthRouter(expectedPassword) {
   });
 
   router.post("/logout", (req, res) => {
-    if (req.session) {
-      req.session.destroy(() => res.json({ success: true }));
-    } else {
-      res.json({ success: true });
-    }
+    req.session = null;
+    res.json({ success: true });
   });
 
   return router;

@@ -330,7 +330,7 @@ async function callWeMpRssAuthed(path, options = {}, fetchOptions = {}) {
 }
 
 async function listSubscribedMps(options = {}) {
-  const data = await fetchWeMpRssAuthedJson("/api/v1/wx/mps?limit=200&offset=0", options);
+  const data = await fetchWeMpRssAuthedJson("/api/v1/wx/mps?limit=100&offset=0", options);
   const list = data?.data?.list || [];
   return list.map((item) => ({
     id: item.id,
@@ -380,6 +380,21 @@ async function deleteSubscribedMp(mpId, options = {}) {
   return callWeMpRssAuthed(`/api/v1/wx/mps/${encodeURIComponent(id)}`, options, {
     method: "DELETE",
   });
+}
+
+async function triggerHistoryCrawl(mpId, pages, options = {}) {
+  const id = String(mpId || "").trim();
+  if (!id) throw new Error("缺少 mp_id");
+  const endPage = Math.max(1, Math.min(40, Number(pages) || 10));
+  const data = await fetchWeMpRssAuthedJson(
+    `/api/v1/wx/mps/update/${encodeURIComponent(id)}?start_page=0&end_page=${endPage}`,
+    options
+  );
+  return {
+    pages_requested: endPage,
+    approx_articles: endPage * 5,
+    raw: data?.data || null,
+  };
 }
 
 async function waitForWeMpRssQrImage(options = {}, maxAttempts = 8) {
@@ -536,7 +551,8 @@ async function fetchFeedArticles(
 }
 
 async function fetchAllFeedArticles(baseUrl, feedId, sourceName, pageSize, options = {}) {
-  const normalizedPageSize = Math.max(1, Math.min(100, Number(pageSize || 100)));
+  // we-mp-rss 的 /rss/{id}/api 实际 cap 在 30，不论传多少。强制 30 以保证 pagination 不被假阴性 break。
+  const normalizedPageSize = 30;
   const seen = new Set();
   const allItems = [];
 
@@ -754,4 +770,5 @@ module.exports = {
   searchMpCandidates,
   addSubscribedMp,
   deleteSubscribedMp,
+  triggerHistoryCrawl,
 };

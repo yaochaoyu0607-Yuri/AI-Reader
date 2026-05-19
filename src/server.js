@@ -3,7 +3,7 @@ require("dotenv").config();
 const crypto = require("crypto");
 const path = require("path");
 const express = require("express");
-const session = require("express-session");
+const cookieSession = require("cookie-session");
 const rateLimit = require("express-rate-limit");
 
 const { initDb } = require("./db/database");
@@ -26,17 +26,13 @@ const app = express();
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "2mb" }));
 app.use(
-  session({
+  cookieSession({
     name: "air.sid",
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: COOKIE_SECURE,
-      maxAge: 1000 * 60 * 60 * 24 * 30,
-    },
+    keys: [SESSION_SECRET],
+    httpOnly: true,
+    sameSite: "lax",
+    secure: COOKIE_SECURE,
+    maxAge: 1000 * 60 * 60 * 24 * 30,
   })
 );
 
