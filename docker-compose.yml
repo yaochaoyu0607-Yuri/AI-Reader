@@ -28,6 +28,8 @@ services:
       - ./data/we-mp-rss:/app/data
     expose:
       - "8001"
+    ports:
+      - "127.0.0.1:8001:8001"
 
   nginx:
     image: nginx:1.27-alpine
