@@ -318,6 +318,70 @@ async function fetchWeMpRssAuthedJson(path, options = {}) {
   });
 }
 
+async function callWeMpRssAuthed(path, options = {}, fetchOptions = {}) {
+  const { baseUrl, accessToken } = await loginWeMpRss(options);
+  return fetchJson(`${baseUrl}${path}`, {
+    ...fetchOptions,
+    headers: {
+      ...(fetchOptions.headers || {}),
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
+
+async function listSubscribedMps(options = {}) {
+  const data = await fetchWeMpRssAuthedJson("/api/v1/wx/mps?limit=200&offset=0", options);
+  const list = data?.data?.list || [];
+  return list.map((item) => ({
+    id: item.id,
+    name: item.mp_name || "",
+    cover: item.mp_cover || "",
+    intro: item.mp_intro || "",
+    status: item.status,
+    created_at: item.created_at || "",
+  }));
+}
+
+async function searchMpCandidates(keyword, options = {}) {
+  const trimmed = String(keyword || "").trim();
+  if (!trimmed) return [];
+  const encoded = encodeURIComponent(trimmed);
+  const data = await fetchWeMpRssAuthedJson(`/api/v1/wx/mps/search/${encoded}`, options);
+  const list = data?.data?.list || [];
+  return list.map((item) => ({
+    mp_id: item.fakeid || "",
+    name: item.nickname || "",
+    alias: item.alias || "",
+    cover: item.round_head_img || "",
+    signature: item.signature || "",
+  }));
+}
+
+async function addSubscribedMp(payload, options = {}) {
+  if (!payload || !payload.mp_name) {
+    throw new Error("缺少 mp_name");
+  }
+  return callWeMpRssAuthed("/api/v1/wx/mps", options, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      mp_name: payload.mp_name,
+      mp_cover: payload.mp_cover || "",
+      mp_id: payload.mp_id || "",
+      avatar: payload.avatar || payload.mp_cover || "",
+      mp_intro: payload.mp_intro || "",
+    }),
+  });
+}
+
+async function deleteSubscribedMp(mpId, options = {}) {
+  const id = String(mpId || "").trim();
+  if (!id) throw new Error("缺少 mp_id");
+  return callWeMpRssAuthed(`/api/v1/wx/mps/${encodeURIComponent(id)}`, options, {
+    method: "DELETE",
+  });
+}
+
 async function waitForWeMpRssQrImage(options = {}, maxAttempts = 8) {
   for (let i = 0; i < maxAttempts; i += 1) {
     const image = await fetchWeMpRssAuthedJson("/api/v1/wx/auth/qr/image", options);
@@ -686,4 +750,8 @@ module.exports = {
   listFeeds,
   getWeMpRssAuthStatus,
   getWeMpRssAuthQrCode,
+  listSubscribedMps,
+  searchMpCandidates,
+  addSubscribedMp,
+  deleteSubscribedMp,
 };

@@ -59,6 +59,7 @@
             </div>
             <div class="sync-quick">
               <button id="quickSyncBtn">一键更新文章</button>
+              <button id="openMpsManagerBtn" class="alt">管理公众号订阅</button>
               <small>会先刷新 we-mp-rss，再同步最近 30 篇</small>
             </div>
             <details class="data-panel">
@@ -228,6 +229,41 @@
         <div id="authQrStatus" class="auth-status-box">等待扫码</div>
         <footer>
           <button id="closeAuthQrBtn">关闭</button>
+        </footer>
+      </article>
+    </dialog>
+
+    <dialog id="mpsManagerDialog" class="mps-dialog">
+      <article class="manage-card mps-card">
+        <header class="mps-header">
+          <h3>公众号订阅管理</h3>
+          <button id="closeMpsManagerBtn" class="alt">关闭</button>
+        </header>
+        <section class="mps-body">
+          <div class="mps-col">
+            <div class="mps-col-head">
+              <h4>已订阅</h4>
+              <button id="refreshMpsBtn" class="alt small">刷新</button>
+            </div>
+            <ul id="subscribedMpsList" class="mps-list">
+              <li class="mps-empty">加载中...</li>
+            </ul>
+          </div>
+          <div class="mps-col">
+            <div class="mps-col-head">
+              <h4>搜索添加</h4>
+            </div>
+            <div class="mps-search-row">
+              <input id="mpsSearchInput" placeholder="输入公众号名 (如：知乎)" />
+              <button id="mpsSearchBtn">搜索</button>
+            </div>
+            <ul id="mpsSearchResults" class="mps-list">
+              <li class="mps-empty">输入关键词后点搜索</li>
+            </ul>
+          </div>
+        </section>
+        <footer class="mps-footer">
+          <div id="mpsManagerStatus" class="mps-status"></div>
         </footer>
       </article>
     </dialog>

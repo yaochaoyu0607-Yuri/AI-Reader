@@ -67,4 +67,40 @@ router.post("/cleanup-duplicates", async (_req, res) => {
   }
 });
 
+router.get("/we-mp-rss/mps", async (_req, res) => {
+  try {
+    const data = await weMpRssSyncService.listSubscribedMps({});
+    return ok(res, data);
+  } catch (error) {
+    return fail(res, error, 500);
+  }
+});
+
+router.get("/we-mp-rss/mps/search", async (req, res) => {
+  try {
+    const data = await weMpRssSyncService.searchMpCandidates(req.query.q || "", {});
+    return ok(res, data);
+  } catch (error) {
+    return fail(res, error, 500);
+  }
+});
+
+router.post("/we-mp-rss/mps", async (req, res) => {
+  try {
+    const data = await weMpRssSyncService.addSubscribedMp(req.body || {}, {});
+    return ok(res, data);
+  } catch (error) {
+    return fail(res, error, 400);
+  }
+});
+
+router.delete("/we-mp-rss/mps/:mpId", async (req, res) => {
+  try {
+    const data = await weMpRssSyncService.deleteSubscribedMp(req.params.mpId, {});
+    return ok(res, data);
+  } catch (error) {
+    return fail(res, error, 400);
+  }
+});
+
 module.exports = router;

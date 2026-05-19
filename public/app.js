@@ -1733,3 +1733,168 @@ fetchWeMpRssAuthStatus()
   .catch(() => {
     renderAuthStatus("授权检查失败", "warn");
   });
+
+// ============= 公众号订阅管理 =============
+const mpsEl = {
+  dialog: document.getElementById("mpsManagerDialog"),
+  openBtn: document.getElementById("openMpsManagerBtn"),
+  closeBtn: document.getElementById("closeMpsManagerBtn"),
+  refreshBtn: document.getElementById("refreshMpsBtn"),
+  subscribedList: document.getElementById("subscribedMpsList"),
+  searchInput: document.getElementById("mpsSearchInput"),
+  searchBtn: document.getElementById("mpsSearchBtn"),
+  results: document.getElementById("mpsSearchResults"),
+  status: document.getElementById("mpsManagerStatus"),
+};
+
+function setMpsStatus(text, tone = "normal") {
+  mpsEl.status.textContent = text || "";
+  mpsEl.status.className = "mps-status" + (tone === "error" ? " error" : tone === "success" ? " success" : "");
+}
+
+function escapeHtml(s) {
+  return String(s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function renderSubscribedMps(items) {
+  if (!items.length) {
+    mpsEl.subscribedList.innerHTML = '<li class="mps-empty">还没订阅任何公众号</li>';
+    return;
+  }
+  mpsEl.subscribedList.innerHTML = items
+    .map(
+      (m) => `
+      <li class="mps-item" data-id="${escapeHtml(m.id)}">
+        <img src="${escapeHtml(m.cover)}" alt="" onerror="this.style.visibility='hidden'" />
+        <div class="mps-item-info">
+          <div class="mps-item-name">${escapeHtml(m.name)}</div>
+          <div class="mps-item-intro">${escapeHtml(m.intro || "—")}</div>
+        </div>
+        <button class="alt" data-action="delete-mp" data-id="${escapeHtml(m.id)}" data-name="${escapeHtml(m.name)}">取消订阅</button>
+      </li>`
+    )
+    .join("");
+}
+
+function renderSearchResults(items, subscribedIds) {
+  if (!items.length) {
+    mpsEl.results.innerHTML = '<li class="mps-empty">没有结果</li>';
+    return;
+  }
+  mpsEl.results.innerHTML = items
+    .map((m) => {
+      const subscribed = subscribedIds.has(m.mp_id);
+      return `
+      <li class="mps-item">
+        <img src="${escapeHtml(m.cover)}" alt="" onerror="this.style.visibility='hidden'" />
+        <div class="mps-item-info">
+          <div class="mps-item-name">${escapeHtml(m.name)}</div>
+          <div class="mps-item-intro">${escapeHtml(m.signature || "—")}</div>
+        </div>
+        ${subscribed
+          ? '<button class="alt" disabled>已订阅</button>'
+          : `<button data-action="add-mp" data-payload='${escapeHtml(JSON.stringify(m))}'>添加</button>`}
+      </li>`;
+    })
+    .join("");
+}
+
+async function loadSubscribedMps() {
+  setMpsStatus("正在加载已订阅...", "normal");
+  try {
+    const items = await request("/api/integrations/we-mp-rss/mps");
+    renderSubscribedMps(items);
+    setMpsStatus(`已订阅 ${items.length} 个公众号`, "normal");
+    return items;
+  } catch (err) {
+    mpsEl.subscribedList.innerHTML = '<li class="mps-empty">加载失败</li>';
+    setMpsStatus(err.message || "加载失败", "error");
+    return [];
+  }
+}
+
+async function runMpSearch() {
+  const kw = mpsEl.searchInput.value.trim();
+  if (!kw) {
+    setMpsStatus("请输入搜索关键词", "error");
+    return;
+  }
+  setMpsStatus("正在搜索...", "normal");
+  mpsEl.results.innerHTML = '<li class="mps-empty">搜索中...</li>';
+  mpsEl.searchBtn.disabled = true;
+  try {
+    const [results, subscribed] = await Promise.all([
+      request(`/api/integrations/we-mp-rss/mps/search?q=${encodeURIComponent(kw)}`),
+      request("/api/integrations/we-mp-rss/mps"),
+    ]);
+    const subscribedIds = new Set(subscribed.map((m) => m.id));
+    renderSearchResults(results, subscribedIds);
+    setMpsStatus(`搜索到 ${results.length} 个结果`, "normal");
+  } catch (err) {
+    mpsEl.results.innerHTML = '<li class="mps-empty">搜索失败</li>';
+    setMpsStatus(err.message || "搜索失败", "error");
+  } finally {
+    mpsEl.searchBtn.disabled = false;
+  }
+}
+
+async function addMp(payload) {
+  setMpsStatus(`正在添加「${payload.name}」...`, "normal");
+  try {
+    await request("/api/integrations/we-mp-rss/mps", {
+      method: "POST",
+      body: JSON.stringify({
+        mp_name: payload.name,
+        mp_id: payload.mp_id,
+        mp_cover: payload.cover,
+        avatar: payload.cover,
+        mp_intro: payload.signature,
+      }),
+    });
+    setMpsStatus(`已订阅「${payload.name}」, 下次同步会拉它的文章`, "success");
+    await loadSubscribedMps();
+    if (mpsEl.searchInput.value.trim()) await runMpSearch();
+  } catch (err) {
+    setMpsStatus(`添加失败: ${err.message}`, "error");
+  }
+}
+
+async function deleteMp(mpId, name) {
+  if (!confirm(`确认取消订阅「${name}」？已拉取的文章不会被删除。`)) return;
+  setMpsStatus(`正在取消订阅...`, "normal");
+  try {
+    await request(`/api/integrations/we-mp-rss/mps/${encodeURIComponent(mpId)}`, { method: "DELETE" });
+    setMpsStatus(`已取消「${name}」`, "success");
+    await loadSubscribedMps();
+  } catch (err) {
+    setMpsStatus(`取消失败: ${err.message}`, "error");
+  }
+}
+
+mpsEl.openBtn.addEventListener("click", () => {
+  if (!mpsEl.dialog.open) mpsEl.dialog.showModal();
+  loadSubscribedMps();
+  mpsEl.results.innerHTML = '<li class="mps-empty">输入关键词后点搜索</li>';
+  mpsEl.searchInput.value = "";
+});
+
+mpsEl.closeBtn.addEventListener("click", () => mpsEl.dialog.close());
+mpsEl.refreshBtn.addEventListener("click", loadSubscribedMps);
+mpsEl.searchBtn.addEventListener("click", runMpSearch);
+mpsEl.searchInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") runMpSearch();
+});
+
+mpsEl.dialog.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-action]");
+  if (!btn) return;
+  if (btn.dataset.action === "delete-mp") {
+    deleteMp(btn.dataset.id, btn.dataset.name);
+  } else if (btn.dataset.action === "add-mp") {
+    try {
+      addMp(JSON.parse(btn.dataset.payload));
+    } catch (_) {}
+  }
+});
+
+bindDialogBackdropClose(mpsEl.dialog);
