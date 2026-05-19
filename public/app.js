@@ -19,9 +19,6 @@ const state = {
   authAfterScanAction: null,
   authQrRetryCount: 0,
   authBusy: false,
-  aiPresets: [],
-  aiProfiles: [],
-  aiCurrentProfileId: "",
   tagSuggestItems: [],
   tagSuggestActiveIdx: -1,
 };
@@ -46,13 +43,9 @@ const el = {
   todoList: document.getElementById("todoList"),
   todoClearDoneBtn: document.getElementById("todoClearDoneBtn"),
   todoClearAllBtn: document.getElementById("todoClearAllBtn"),
-  aiSettingsBtn: document.getElementById("aiSettingsBtn"),
   tagManageBtn: document.getElementById("tagManageBtn"),
   notesCenterBtn: document.getElementById("notesCenterBtn"),
   reflectionsCenterBtn: document.getElementById("reflectionsCenterBtn"),
-  knowledgeChatBtn: document.getElementById("knowledgeChatBtn"),
-  readingPriorityBtn: document.getElementById("readingPriorityBtn"),
-  weeklyInsightBtn: document.getElementById("weeklyInsightBtn"),
   unreadOnlyToggle: document.getElementById("unreadOnlyToggle"),
   starOnlyToggle: document.getElementById("starOnlyToggle"),
   syncBaseUrl: document.getElementById("syncBaseUrl"),
@@ -83,15 +76,7 @@ const el = {
   tagInput: document.getElementById("tagInput"),
   tagAddBtn: document.getElementById("tagAddBtn"),
   tagSuggestList: document.getElementById("tagSuggestList"),
-  loadTagSuggestionsBtn: document.getElementById("loadTagSuggestionsBtn"),
-  applyAllSuggestedTagsBtn: document.getElementById("applyAllSuggestedTagsBtn"),
-  tagSuggestionsBox: document.getElementById("tagSuggestionsBox"),
   reflectionInput: document.getElementById("reflectionInput"),
-  loadAiSummaryBtn: document.getElementById("loadAiSummaryBtn"),
-  loadRelatedKnowledgeBtn: document.getElementById("loadRelatedKnowledgeBtn"),
-  askFromArticleBtn: document.getElementById("askFromArticleBtn"),
-  aiSummaryBox: document.getElementById("aiSummaryBox"),
-  relatedKnowledgeBox: document.getElementById("relatedKnowledgeBox"),
   closeDialogBtn: document.getElementById("closeDialogBtn"),
   tagManageDialog: document.getElementById("tagManageDialog"),
   manageNewTagName: document.getElementById("manageNewTagName"),
@@ -117,38 +102,6 @@ const el = {
   authQrImage: document.getElementById("authQrImage"),
   authQrStatus: document.getElementById("authQrStatus"),
   closeAuthQrBtn: document.getElementById("closeAuthQrBtn"),
-  knowledgeChatDialog: document.getElementById("knowledgeChatDialog"),
-  knowledgeChatInput: document.getElementById("knowledgeChatInput"),
-  knowledgeChatSendBtn: document.getElementById("knowledgeChatSendBtn"),
-  knowledgeChatAnswer: document.getElementById("knowledgeChatAnswer"),
-  closeKnowledgeChatBtn: document.getElementById("closeKnowledgeChatBtn"),
-  readingPriorityDialog: document.getElementById("readingPriorityDialog"),
-  readingPriorityList: document.getElementById("readingPriorityList"),
-  closeReadingPriorityBtn: document.getElementById("closeReadingPriorityBtn"),
-  weeklyInsightDialog: document.getElementById("weeklyInsightDialog"),
-  weeklyStartInput: document.getElementById("weeklyStartInput"),
-  weeklyEndInput: document.getElementById("weeklyEndInput"),
-  weeklyGenerateBtn: document.getElementById("weeklyGenerateBtn"),
-  weeklyInsightBox: document.getElementById("weeklyInsightBox"),
-  closeWeeklyInsightBtn: document.getElementById("closeWeeklyInsightBtn"),
-  aiSettingsDialog: document.getElementById("aiSettingsDialog"),
-  aiProviderSelect: document.getElementById("aiProviderSelect"),
-  aiProviderHint: document.getElementById("aiProviderHint"),
-  aiProfileSelect: document.getElementById("aiProfileSelect"),
-  aiApplyProfileBtn: document.getElementById("aiApplyProfileBtn"),
-  aiDeleteProfileBtn: document.getElementById("aiDeleteProfileBtn"),
-  aiProfileNameInput: document.getElementById("aiProfileNameInput"),
-  aiSaveProfileBtn: document.getElementById("aiSaveProfileBtn"),
-  aiBaseUrlInput: document.getElementById("aiBaseUrlInput"),
-  aiApiKeyInput: document.getElementById("aiApiKeyInput"),
-  aiApiKeyHint: document.getElementById("aiApiKeyHint"),
-  aiChatModelInput: document.getElementById("aiChatModelInput"),
-  aiEmbeddingModelInput: document.getElementById("aiEmbeddingModelInput"),
-  aiUseLocalEmbeddingInput: document.getElementById("aiUseLocalEmbeddingInput"),
-  aiSettingsStatusBox: document.getElementById("aiSettingsStatusBox"),
-  aiSaveSettingsBtn: document.getElementById("aiSaveSettingsBtn"),
-  aiTestSettingsBtn: document.getElementById("aiTestSettingsBtn"),
-  closeAiSettingsBtn: document.getElementById("closeAiSettingsBtn"),
 };
 
 function loadTodos() {
@@ -584,211 +537,6 @@ function renderSyncLog(result) {
   el.syncLog.textContent = lines.join("\n");
 }
 
-function renderAiSummary(summary) {
-  if (!summary || summary.status === "queued") {
-    el.aiSummaryBox.textContent = "AI Summary 正在生成，请稍后再试。";
-    return;
-  }
-  const lines = [
-    summary.summary || "暂无总结",
-    "",
-    `核心观点：${(summary.core_arguments || []).join("；") || "暂无"}`,
-    `关键概念：${(summary.key_concepts || []).join(" / ") || "暂无"}`,
-    `可执行启发：${(summary.actionable_insights || []).join("；") || "暂无"}`,
-  ];
-  el.aiSummaryBox.textContent = lines.join("\n");
-}
-
-function renderRelatedKnowledgeBox(data) {
-  if (!data) {
-    el.relatedKnowledgeBox.textContent = "暂无关联知识";
-    return;
-  }
-  const lines = [];
-  lines.push(`相关文章：${(data.related_articles || []).map((x) => x.title).join("；") || "暂无"}`);
-  lines.push(`相关笔记：${(data.related_notes || []).map((x) => x.article_title).join("；") || "暂无"}`);
-  lines.push(`支持性观点：${(data.supporting_views || []).map((x) => x.article_title).join("；") || "暂无"}`);
-  lines.push(`冲突性观点：${(data.conflicting_views || []).map((x) => x.article_title).join("；") || "暂无"}`);
-  el.relatedKnowledgeBox.textContent = lines.join("\n");
-}
-
-function renderKnowledgeChatAnswer(data) {
-  if (!data) {
-    el.knowledgeChatAnswer.textContent = "暂无回答";
-    return;
-  }
-  const sources = (data.sources || [])
-    .map((s) => `${s.title || s.type}(${s.article_id || s.note_id || s.thought_id || s.id || ""})`)
-    .join("；");
-  el.knowledgeChatAnswer.textContent = `${data.answer || "暂无回答"}\n\n来源：${sources || "暂无"}`;
-}
-
-function renderReadingPriority(data) {
-  if (!Array.isArray(data) || data.length === 0) {
-    el.readingPriorityList.innerHTML = "暂无结果";
-    return;
-  }
-  el.readingPriorityList.innerHTML = data
-    .map(
-      (item) => `
-      <article class="note-center-item">
-        <h4>${escapeHtml(item.title || `文章 #${item.article_id}`)}</h4>
-        <div class="article-meta">${escapeHtml(item.source || "")} ｜ ${escapeHtml(item.publish_date || "")} ｜ 优先级分数：${item.priority_score}</div>
-        <div class="note-center-content">${escapeHtml(item.reason || "")}</div>
-      </article>
-    `
-    )
-    .join("");
-}
-
-function renderWeeklyInsight(data) {
-  if (!data) {
-    el.weeklyInsightBox.textContent = "暂无周报";
-    return;
-  }
-  const lines = [
-    `主题：${(data.themes || []).join(" / ") || "暂无"}`,
-    `新想法：${(data.new_ideas || []).join("；") || "暂无"}`,
-    `观点变化：${(data.changing_opinions || []).join("；") || "暂无"}`,
-    `推荐继续阅读：${(data.recommended_topics || []).join(" / ") || "暂无"}`,
-  ];
-  el.weeklyInsightBox.textContent = lines.join("\n\n");
-}
-
-function renderTagSuggestions(data) {
-  const suggestions = data?.suggestions || [];
-  if (!suggestions.length) {
-    el.tagSuggestionsBox.textContent = "暂无建议，说明当前标签已经比较完整。";
-    return;
-  }
-  el.tagSuggestionsBox.innerHTML = suggestions
-    .map(
-      (item) => `
-      <div class="suggested-tag-item">
-        <button class="tag-chip alt suggested-tag-chip" data-suggested-tag="${escapeHtml(item.name)}">${escapeHtml(
-          item.name
-        )}</button>
-        <span class="tag-suggestion-reason">${escapeHtml(item.reason || "")}</span>
-      </div>
-    `
-    )
-    .join("");
-}
-
-function renderAiSettingsStatus(text) {
-  el.aiSettingsStatusBox.textContent = text;
-}
-
-function getAiPreset(provider) {
-  return state.aiPresets.find((item) => item.provider === provider) || null;
-}
-
-function renderAiProviderOptions(presets = []) {
-  const list = Array.isArray(presets) && presets.length ? presets : [];
-  el.aiProviderSelect.innerHTML = list
-    .map((item) => `<option value="${item.provider}">${escapeHtml(item.label)}</option>`)
-    .join("");
-}
-
-function renderAiProfileOptions(profiles = [], currentProfileId = "") {
-  el.aiProfileSelect.innerHTML =
-    '<option value="">未选择已保存方案</option>' +
-    profiles
-      .map(
-        (item) =>
-          `<option value="${item.id}" ${item.id === currentProfileId ? "selected" : ""}>${escapeHtml(
-            item.name
-          )} ｜ ${escapeHtml(item.label || item.provider || "")}</option>`
-      )
-      .join("");
-}
-
-function updateAiProviderHint(provider) {
-  const preset = getAiPreset(provider);
-  if (!preset) {
-    el.aiProviderHint.textContent = "选择后会自动带出推荐配置";
-    return;
-  }
-  const embeddingText = preset.use_local_embedding ? "本地 embedding" : preset.embedding_model || "未预设";
-  el.aiProviderHint.textContent =
-    `${preset.label}：${preset.description || "已自动带出推荐配置"} 推荐聊天模型 ${
-      preset.chat_model || "请自行填写"
-    }，embedding ${embeddingText}`;
-}
-
-function getPresetDefaults(provider) {
-  return (
-    getAiPreset(provider) ||
-    getAiPreset("compatible") || {
-      base_url: "https://api.openai.com/v1",
-      chat_model: "",
-      embedding_model: "",
-      use_local_embedding: false,
-    }
-  );
-}
-
-function applyAiProviderPreset(provider, { preserveApiKey = true } = {}) {
-  const preset = getPresetDefaults(provider);
-  el.aiProviderSelect.value = provider;
-  el.aiBaseUrlInput.value = preset.base_url;
-  el.aiChatModelInput.value = preset.chat_model;
-  el.aiEmbeddingModelInput.value = preset.embedding_model;
-  el.aiUseLocalEmbeddingInput.checked = preset.use_local_embedding;
-  if (!preserveApiKey) {
-    el.aiApiKeyInput.value = "";
-  }
-  updateAiProviderHint(provider);
-}
-
-async function loadAiSettings() {
-  const data = await request("/api/ai/settings");
-  state.aiPresets = Array.isArray(data.presets) ? data.presets : [];
-  state.aiProfiles = Array.isArray(data.profiles) ? data.profiles : [];
-  state.aiCurrentProfileId = data.current_profile_id || "";
-  renderAiProviderOptions(state.aiPresets);
-  renderAiProfileOptions(state.aiProfiles, state.aiCurrentProfileId);
-  applyAiProviderPreset(data.provider || "openai");
-  el.aiBaseUrlInput.value = data.base_url || "";
-  el.aiChatModelInput.value = data.chat_model || "";
-  el.aiEmbeddingModelInput.value = data.embedding_model || "";
-  el.aiUseLocalEmbeddingInput.checked = Boolean(data.use_local_embedding);
-  el.aiApiKeyInput.value = "";
-  el.aiProfileNameInput.value = "";
-  el.aiApiKeyHint.textContent = data.has_api_key
-    ? `已保存 Key：${data.api_key_masked || ""}；留空表示保持不变`
-    : "当前未保存 API Key";
-  renderAiSettingsStatus(
-    `当前配置：${getAiPreset(data.provider)?.label || data.provider} ｜ 聊天模型：${
-      data.chat_model || "未设置"
-    } ｜ embedding：${
-      data.use_local_embedding ? "本地" : data.embedding_model || "未设置"
-    }${data.current_profile_id ? " ｜ 已关联已保存方案" : ""}`
-  );
-  return data;
-}
-
-function buildAiSettingsPayload() {
-  return {
-    provider: el.aiProviderSelect.value,
-    base_url: el.aiBaseUrlInput.value.trim(),
-    api_key: el.aiApiKeyInput.value.trim(),
-    chat_model: el.aiChatModelInput.value.trim(),
-    embedding_model: el.aiEmbeddingModelInput.value.trim(),
-    use_local_embedding: el.aiUseLocalEmbeddingInput.checked,
-    keep_existing_key: true,
-    current_profile_id: state.aiCurrentProfileId,
-  };
-}
-
-function buildAiProfilePayload() {
-  return {
-    ...buildAiSettingsPayload(),
-    name: el.aiProfileNameInput.value.trim(),
-    profile_id: el.aiProfileSelect.value || "",
-  };
-}
-
 function getTagSuggestions(keyword) {
   const q = String(keyword || "").trim().toLowerCase();
   if (!q) return [];
@@ -1140,66 +888,6 @@ async function runSync({ quick = false } = {}) {
   return result;
 }
 
-async function loadAiSummary(articleId) {
-  const data = await request(`/api/ai/articles/${articleId}/summary`);
-  renderAiSummary(data);
-  if (data?.status === "queued") {
-    setTimeout(() => {
-      loadAiSummary(articleId).catch(() => {});
-    }, 2500);
-  }
-  return data;
-}
-
-async function loadRelatedKnowledge(articleId) {
-  const data = await request(`/api/ai/related-knowledge?articleId=${articleId}`);
-  renderRelatedKnowledgeBox(data);
-  return data;
-}
-
-async function runKnowledgeChat(query) {
-  const data = await request("/api/ai/knowledge-chat", {
-    method: "POST",
-    body: JSON.stringify({ query }),
-  });
-  renderKnowledgeChatAnswer(data);
-  return data;
-}
-
-async function loadReadingPriority() {
-  const data = await request("/api/ai/reading-priority");
-  renderReadingPriority(data);
-  return data;
-}
-
-async function generateWeeklyInsight() {
-  const data = await request("/api/ai/weekly-report", {
-    method: "POST",
-    body: JSON.stringify({
-      dateRange: {
-        start: el.weeklyStartInput.value.trim(),
-        end: el.weeklyEndInput.value.trim(),
-      },
-    }),
-  });
-  renderWeeklyInsight(data);
-  return data;
-}
-
-async function loadTagSuggestions(articleId) {
-  const data = await request(`/api/ai/articles/${articleId}/tag-suggestions`);
-  renderTagSuggestions(data);
-  return data;
-}
-
-async function applySuggestedTags(articleId, tags) {
-  const data = await request(`/api/ai/articles/${articleId}/apply-tag-suggestions`, {
-    method: "POST",
-    body: JSON.stringify({ tags }),
-  });
-  return data;
-}
-
 async function performSyncFlow({ quick = false } = {}) {
   persistAuthConfig();
   const executeSync = async () => {
@@ -1253,15 +941,9 @@ async function openDetail(articleId) {
 
   const notes = await request(`/api/articles/${articleId}/notes`);
   renderDetailNotes(notes);
-  renderAiSummary(null);
-  renderRelatedKnowledgeBox(null);
-  el.tagSuggestionsBox.textContent = "暂无 AI 标签建议";
   if (!el.detailDialog.open) {
     el.detailDialog.showModal();
   }
-  loadAiSummary(articleId).catch(() => {
-    el.aiSummaryBox.textContent = "AI Summary 生成失败，请稍后重试。";
-  });
 }
 
 function renderDetailNotes(notes) {
@@ -1597,61 +1279,6 @@ el.syncBtn.addEventListener("click", async () => {
   }
 });
 
-el.loadAiSummaryBtn.addEventListener("click", async () => {
-  if (!state.currentArticle) return;
-  try {
-    await loadAiSummary(state.currentArticle.id);
-  } catch (error) {
-    alert(error.message);
-  }
-});
-
-el.loadTagSuggestionsBtn.addEventListener("click", async () => {
-  if (!state.currentArticle) return;
-  try {
-    el.tagSuggestionsBox.textContent = "AI 正在分析标签建议...";
-    await loadTagSuggestions(state.currentArticle.id);
-  } catch (error) {
-    alert(error.message);
-  }
-});
-
-el.applyAllSuggestedTagsBtn.addEventListener("click", async () => {
-  if (!state.currentArticle) return;
-  const nodes = Array.from(el.tagSuggestionsBox.querySelectorAll("[data-suggested-tag]"));
-  const tags = nodes.map((node) => node.getAttribute("data-suggested-tag")).filter(Boolean);
-  if (!tags.length) {
-    alert("当前没有可应用的建议标签");
-    return;
-  }
-  try {
-    await applySuggestedTags(state.currentArticle.id, tags);
-    await loadAll();
-    await openDetail(state.currentArticle.id);
-    alert(`已应用 ${tags.length} 个建议标签`);
-  } catch (error) {
-    alert(error.message);
-  }
-});
-
-el.loadRelatedKnowledgeBtn.addEventListener("click", async () => {
-  if (!state.currentArticle) return;
-  try {
-    await loadRelatedKnowledge(state.currentArticle.id);
-  } catch (error) {
-    alert(error.message);
-  }
-});
-
-el.askFromArticleBtn.addEventListener("click", async () => {
-  if (!state.currentArticle) return;
-  el.knowledgeChatInput.value = `围绕《${state.currentArticle.title}》，结合我已有笔记和感想，帮我理解它和我近期关注主题的联系。`;
-  renderKnowledgeChatAnswer(null);
-  if (!el.knowledgeChatDialog.open) {
-    el.knowledgeChatDialog.showModal();
-  }
-});
-
 el.checkAuthBtn.addEventListener("click", async () => {
   try {
     persistAuthConfig();
@@ -1671,184 +1298,6 @@ el.showAuthQrBtn.addEventListener("click", async () => {
     setAuthBusy(false, "manual");
     el.authQrStatus.textContent = "获取二维码失败，请稍后重试";
     el.authQrStatus.dataset.tone = "warn";
-    alert(error.message);
-  }
-});
-
-el.aiSettingsBtn.addEventListener("click", async () => {
-  try {
-    renderAiSettingsStatus("正在加载 AI 配置...");
-    await loadAiSettings();
-    if (!el.aiSettingsDialog.open) {
-      el.aiSettingsDialog.showModal();
-    }
-  } catch (error) {
-    alert(error.message);
-  }
-});
-
-el.aiProviderSelect.addEventListener("change", () => {
-  applyAiProviderPreset(el.aiProviderSelect.value, { preserveApiKey: true });
-  renderAiSettingsStatus("已应用预设，请确认后保存。");
-});
-
-el.aiProfileSelect.addEventListener("change", () => {
-  const profile = state.aiProfiles.find((item) => item.id === el.aiProfileSelect.value);
-  el.aiProfileNameInput.value = profile?.name || "";
-  if (profile) {
-    renderAiSettingsStatus(`已选中方案：${profile.name}，点击“使用该方案”即可切换。`);
-  }
-});
-
-el.aiApplyProfileBtn.addEventListener("click", async () => {
-  const profileId = el.aiProfileSelect.value;
-  if (!profileId) {
-    alert("请先选择一个已保存方案");
-    return;
-  }
-  try {
-    renderAiSettingsStatus("正在应用已保存方案...");
-    const data = await request("/api/ai/settings/apply-profile", {
-      method: "POST",
-      body: JSON.stringify({ profile_id: profileId }),
-    });
-    state.aiCurrentProfileId = data.current_profile_id || "";
-    await loadAiSettings();
-    renderAiSettingsStatus("已切换到已保存方案。");
-  } catch (error) {
-    alert(error.message);
-    renderAiSettingsStatus(`切换失败：${error.message}`);
-  }
-});
-
-el.aiDeleteProfileBtn.addEventListener("click", async () => {
-  const profileId = el.aiProfileSelect.value;
-  if (!profileId) {
-    alert("请先选择要删除的方案");
-    return;
-  }
-  if (!window.confirm("确认删除这个已保存方案吗？")) return;
-  try {
-    renderAiSettingsStatus("正在删除已保存方案...");
-    const data = await request(`/api/ai/settings/profiles/${encodeURIComponent(profileId)}`, {
-      method: "DELETE",
-    });
-    state.aiCurrentProfileId = data.current_profile_id || "";
-    await loadAiSettings();
-    renderAiSettingsStatus("已删除已保存方案。");
-  } catch (error) {
-    alert(error.message);
-    renderAiSettingsStatus(`删除失败：${error.message}`);
-  }
-});
-
-el.aiSaveProfileBtn.addEventListener("click", async () => {
-  if (!el.aiProfileNameInput.value.trim()) {
-    alert("请先填写方案名称");
-    return;
-  }
-  try {
-    renderAiSettingsStatus("正在保存为可复用方案...");
-    const data = await request("/api/ai/settings/profiles", {
-      method: "POST",
-      body: JSON.stringify(buildAiProfilePayload()),
-    });
-    state.aiCurrentProfileId = data.current_profile_id || "";
-    await loadAiSettings();
-    renderAiSettingsStatus("已保存为可复用方案，下次可直接选择。");
-  } catch (error) {
-    alert(error.message);
-    renderAiSettingsStatus(`保存方案失败：${error.message}`);
-  }
-});
-
-el.aiSaveSettingsBtn.addEventListener("click", async () => {
-  try {
-    renderAiSettingsStatus("正在保存配置...");
-    const data = await request("/api/ai/settings", {
-      method: "PUT",
-      body: JSON.stringify(buildAiSettingsPayload()),
-    });
-    state.aiCurrentProfileId = data.current_profile_id || "";
-    el.aiApiKeyInput.value = "";
-    el.aiApiKeyHint.textContent = data.has_api_key
-      ? `已保存 Key：${data.api_key_masked || ""}；留空表示保持不变`
-      : "当前未保存 API Key";
-    renderAiSettingsStatus(
-      `保存成功：${getAiPreset(data.provider)?.label || data.provider} ｜ 聊天模型：${
-        data.chat_model || "未设置"
-      } ｜ embedding：${data.use_local_embedding ? "本地" : data.embedding_model || "未设置"}`
-    );
-    renderAiProfileOptions(data.profiles || [], state.aiCurrentProfileId);
-  } catch (error) {
-    alert(error.message);
-  }
-});
-
-el.aiTestSettingsBtn.addEventListener("click", async () => {
-  try {
-    renderAiSettingsStatus("正在测试连接...");
-    const data = await request("/api/ai/settings/test", {
-      method: "POST",
-      body: JSON.stringify(buildAiSettingsPayload()),
-    });
-    renderAiSettingsStatus(`测试成功：${data.message}`);
-  } catch (error) {
-    alert(error.message);
-    renderAiSettingsStatus(`测试失败：${error.message}`);
-  }
-});
-
-el.knowledgeChatBtn.addEventListener("click", () => {
-  renderKnowledgeChatAnswer(null);
-  if (!el.knowledgeChatDialog.open) {
-    el.knowledgeChatDialog.showModal();
-  }
-});
-
-el.knowledgeChatSendBtn.addEventListener("click", async () => {
-  const query = el.knowledgeChatInput.value.trim();
-  if (!query) {
-    alert("请输入问题");
-    return;
-  }
-  try {
-    el.knowledgeChatAnswer.textContent = "AI 正在整理答案...";
-    await runKnowledgeChat(query);
-  } catch (error) {
-    alert(error.message);
-  }
-});
-
-el.readingPriorityBtn.addEventListener("click", async () => {
-  try {
-    el.readingPriorityList.innerHTML = "AI 正在计算优先级...";
-    await loadReadingPriority();
-    if (!el.readingPriorityDialog.open) {
-      el.readingPriorityDialog.showModal();
-    }
-  } catch (error) {
-    alert(error.message);
-  }
-});
-
-el.weeklyInsightBtn.addEventListener("click", () => {
-  const today = new Date();
-  const end = today.toISOString().slice(0, 10);
-  const start = new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  if (!el.weeklyStartInput.value) el.weeklyStartInput.value = start;
-  if (!el.weeklyEndInput.value) el.weeklyEndInput.value = end;
-  renderWeeklyInsight(null);
-  if (!el.weeklyInsightDialog.open) {
-    el.weeklyInsightDialog.showModal();
-  }
-});
-
-el.weeklyGenerateBtn.addEventListener("click", async () => {
-  try {
-    el.weeklyInsightBox.textContent = "AI 正在生成周报...";
-    await generateWeeklyInsight();
-  } catch (error) {
     alert(error.message);
   }
 });
@@ -2029,20 +1478,6 @@ el.tagList.addEventListener("click", async (e) => {
   }
 });
 
-el.tagSuggestionsBox.addEventListener("click", async (e) => {
-  const btn = e.target.closest("[data-suggested-tag]");
-  if (!btn || !state.currentArticle) return;
-  const tagName = btn.getAttribute("data-suggested-tag");
-  if (!tagName) return;
-  try {
-    await applySuggestedTags(state.currentArticle.id, [tagName]);
-    await loadAll();
-    await openDetail(state.currentArticle.id);
-  } catch (error) {
-    alert(error.message);
-  }
-});
-
 if (el.tagInput) {
   el.tagInput.addEventListener("input", () => {
     renderTagSuggestList();
@@ -2103,10 +1538,6 @@ el.reflectionInput.addEventListener("blur", () => {
 el.closeTagManageBtn.addEventListener("click", () => el.tagManageDialog.close());
 el.closeNotesCenterBtn.addEventListener("click", () => el.notesCenterDialog.close());
 el.closeReflectionsCenterBtn.addEventListener("click", () => el.reflectionsCenterDialog.close());
-el.closeKnowledgeChatBtn.addEventListener("click", () => el.knowledgeChatDialog.close());
-el.closeReadingPriorityBtn.addEventListener("click", () => el.readingPriorityDialog.close());
-el.closeWeeklyInsightBtn.addEventListener("click", () => el.weeklyInsightDialog.close());
-el.closeAiSettingsBtn.addEventListener("click", () => el.aiSettingsDialog.close());
 el.closeAuthQrBtn.addEventListener("click", () => {
   stopAuthPolling();
   state.authAfterScanAction = null;
@@ -2262,10 +1693,6 @@ el.detailDialog.addEventListener("cancel", (e) => {
 bindDialogBackdropClose(el.tagManageDialog);
 bindDialogBackdropClose(el.notesCenterDialog);
 bindDialogBackdropClose(el.reflectionsCenterDialog);
-bindDialogBackdropClose(el.knowledgeChatDialog);
-bindDialogBackdropClose(el.readingPriorityDialog);
-bindDialogBackdropClose(el.weeklyInsightDialog);
-bindDialogBackdropClose(el.aiSettingsDialog);
 bindDialogBackdropClose(el.authQrDialog);
 el.authQrDialog.addEventListener("close", () => {
   stopAuthPolling();
@@ -2284,7 +1711,6 @@ if (storedAuthConfig.password) el.syncPassword.value = storedAuthConfig.password
 renderLastSync(localStorage.getItem("lastSyncAt"));
 renderSyncLog(null);
 renderAuthStatus("待检查", "normal");
-renderAiSettingsStatus("打开 AI 设置后即可配置外部模型。");
 loadTodos();
 renderTodos();
 loadAll().catch((error) => alert(error.message));
@@ -2295,4 +1721,3 @@ fetchWeMpRssAuthStatus()
   .catch(() => {
     renderAuthStatus("授权检查失败", "warn");
   });
-loadAiSettings().catch(() => {});

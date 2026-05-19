@@ -67,8 +67,6 @@ async function initDb() {
     "content_embedding",
     "ALTER TABLE Article ADD COLUMN content_embedding TEXT;"
   );
-  await ensureColumn("Article", "ai_status", "ALTER TABLE Article ADD COLUMN ai_status TEXT;");
-
   await run(`
     CREATE TABLE IF NOT EXISTS Tag (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -135,50 +133,6 @@ async function initDb() {
     "ALTER TABLE ArticleReflection ADD COLUMN content_embedding TEXT;"
   );
 
-  await run(`
-    CREATE TABLE IF NOT EXISTS ArticleAI (
-      article_id INTEGER PRIMARY KEY,
-      summary TEXT NOT NULL,
-      core_arguments TEXT NOT NULL,
-      key_concepts TEXT NOT NULL,
-      actionable_insights TEXT NOT NULL,
-      embedding TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      FOREIGN KEY(article_id) REFERENCES Article(id) ON DELETE CASCADE
-    );
-  `);
-
-  await run(`
-    CREATE TABLE IF NOT EXISTS AI_CACHE (
-      input_hash TEXT PRIMARY KEY,
-      response TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    );
-  `);
-
-  await run(`
-    CREATE TABLE IF NOT EXISTS AIQueue (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      job_type TEXT NOT NULL,
-      entity_type TEXT NOT NULL,
-      entity_id INTEGER NOT NULL,
-      payload TEXT,
-      status TEXT NOT NULL DEFAULT 'pending',
-      error TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      UNIQUE(job_type, entity_type, entity_id)
-    );
-  `);
-
-  await run(`
-    CREATE TABLE IF NOT EXISTS AISettings (
-      setting_key TEXT PRIMARY KEY,
-      setting_value TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-  `);
 }
 
 module.exports = {

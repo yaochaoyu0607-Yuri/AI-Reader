@@ -1,0 +1,56 @@
+services:
+  ai-reader:
+    build: .
+    image: ai-reader:latest
+    container_name: ai-reader
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - WE_MP_RSS_URL=http://we-mp-rss:8001
+      - COOKIE_SECURE=true
+    volumes:
+      - ./data:/app/data
+    expose:
+      - "8787"
+    depends_on:
+      - we-mp-rss
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8787/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  we-mp-rss:
+    image: rachelos/we-mp-rss:latest
+    container_name: we-mp-rss
+    restart: unless-stopped
+    volumes:
+      - ./data/we-mp-rss:/app/data
+    expose:
+      - "8001"
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: ai-reader-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx:/etc/nginx/conf.d:ro
+      - ./deploy/certbot/conf:/etc/letsencrypt:ro
+      - ./deploy/certbot/www:/var/www/certbot:ro
+    depends_on:
+      - ai-reader
+    command: >
+      /bin/sh -c "while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g 'daemon off;'"
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: ai-reader-certbot
+    restart: unless-stopped
+    volumes:
+      - ./deploy/certbot/conf:/etc/letsencrypt
+      - ./deploy/certbot/www:/var/www/certbot
+    entrypoint: >
+      /bin/sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"

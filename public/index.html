@@ -16,13 +16,9 @@
       <section class="control-bar">
         <div class="status-line" id="stats"></div>
         <div class="quick-actions">
-          <button id="aiSettingsBtn" class="alt">AI 设置</button>
           <button id="tagManageBtn" class="alt">标签管理</button>
           <button id="notesCenterBtn" class="alt">笔记中心</button>
           <button id="reflectionsCenterBtn" class="alt">感想中心</button>
-          <button id="knowledgeChatBtn" class="alt">AI Knowledge Chat</button>
-          <button id="readingPriorityBtn" class="alt">Reading Priority</button>
-          <button id="weeklyInsightBtn" class="alt">Weekly Insight</button>
         </div>
         <div class="quick-filters">
           <label><input type="checkbox" id="unreadOnlyToggle" /> 只看未读</label>
@@ -151,28 +147,10 @@
             </div>
             <div id="tagSuggestList" class="tag-suggest-list">输入后显示建议</div>
           </div>
-          <div class="tag-actions">
-            <div class="inline-actions">
-              <button id="loadTagSuggestionsBtn" class="alt">AI 标签建议</button>
-              <button id="applyAllSuggestedTagsBtn" class="alt">一键应用建议</button>
-            </div>
-            <div id="tagSuggestionsBox" class="ai-box">暂无 AI 标签建议</div>
-          </div>
 
           <h4>感想</h4>
           <div class="tag-actions">
             <textarea id="reflectionInput" rows="4" placeholder="总结观点、评估质量、记录可落地行动"></textarea>
-          </div>
-
-          <h4>AI Summary</h4>
-          <div class="tag-actions">
-            <div class="inline-actions">
-              <button id="loadAiSummaryBtn" class="alt">生成 / 刷新 AI Summary</button>
-              <button id="loadRelatedKnowledgeBtn" class="alt">Related Knowledge</button>
-              <button id="askFromArticleBtn" class="alt">AI Ask</button>
-            </div>
-            <div id="aiSummaryBox" class="ai-box">暂无 AI Summary</div>
-            <div id="relatedKnowledgeBox" class="ai-box">暂无关联知识</div>
           </div>
 
           <footer>
@@ -250,109 +228,6 @@
         <div id="authQrStatus" class="auth-status-box">等待扫码</div>
         <footer>
           <button id="closeAuthQrBtn">关闭</button>
-        </footer>
-      </article>
-    </dialog>
-
-    <dialog id="knowledgeChatDialog">
-      <article class="manage-card notes-center-card">
-        <h3>Knowledge Chat</h3>
-        <div class="tag-actions">
-          <textarea id="knowledgeChatInput" rows="4" placeholder="例如：最近关于多智能体和推理优化，我形成了哪些稳定观点？"></textarea>
-          <button id="knowledgeChatSendBtn">提问</button>
-        </div>
-        <div id="knowledgeChatAnswer" class="ai-box">暂无回答</div>
-        <footer>
-          <button id="closeKnowledgeChatBtn">关闭</button>
-        </footer>
-      </article>
-    </dialog>
-
-    <dialog id="readingPriorityDialog">
-      <article class="manage-card notes-center-card">
-        <h3>Reading Priority</h3>
-        <div id="readingPriorityList" class="notes-center-list">暂无结果</div>
-        <footer>
-          <button id="closeReadingPriorityBtn">关闭</button>
-        </footer>
-      </article>
-    </dialog>
-
-    <dialog id="weeklyInsightDialog">
-      <article class="manage-card notes-center-card">
-        <h3>Weekly Insight</h3>
-        <div class="notes-filter">
-          <input id="weeklyStartInput" placeholder="开始日期，如 2026-03-01" />
-          <input id="weeklyEndInput" placeholder="结束日期，如 2026-03-09" />
-          <button id="weeklyGenerateBtn">生成周报</button>
-        </div>
-        <div id="weeklyInsightBox" class="ai-box">暂无周报</div>
-        <footer>
-          <button id="closeWeeklyInsightBtn">关闭</button>
-        </footer>
-      </article>
-    </dialog>
-
-    <dialog id="aiSettingsDialog">
-      <article class="manage-card notes-center-card">
-        <h3>AI 设置</h3>
-        <div class="ai-settings-guide">
-          最简单的配置方式：
-          1. 先选常用服务商
-          2. 只填 API Key（其余会自动带出）
-          3. 点击保存当前配置
-          4. 如果以后还想复用，可另存为方案
-        </div>
-        <div class="toolbar">
-          <div class="tool-item">
-            <label>模型提供商</label>
-            <select id="aiProviderSelect"></select>
-            <small id="aiProviderHint">选择后会自动带出推荐配置</small>
-          </div>
-          <div class="tool-item">
-            <label>已保存方案</label>
-            <div class="inline-actions">
-              <select id="aiProfileSelect">
-                <option value="">未选择已保存方案</option>
-              </select>
-              <button id="aiApplyProfileBtn" class="alt" type="button">使用该方案</button>
-              <button id="aiDeleteProfileBtn" class="alt" type="button">删除方案</button>
-            </div>
-            <small>适合保存多套配置，例如 DeepSeek、通义千问、Kimi。</small>
-          </div>
-          <div class="tool-item">
-            <label>方案名称（可选）</label>
-            <div class="inline-actions">
-              <input id="aiProfileNameInput" placeholder="例如：DeepSeek 日常 / 通义主力" />
-              <button id="aiSaveProfileBtn" class="alt" type="button">另存为方案</button>
-            </div>
-          </div>
-          <div class="tool-item">
-            <label>Base URL</label>
-            <input id="aiBaseUrlInput" placeholder="https://api.openai.com/v1" />
-          </div>
-          <div class="tool-item">
-            <label>API Key</label>
-            <input id="aiApiKeyInput" type="password" placeholder="留空表示保持当前已保存的 Key" />
-            <small id="aiApiKeyHint">当前未保存 API Key</small>
-          </div>
-          <div class="tool-item">
-            <label>聊天模型</label>
-            <input id="aiChatModelInput" placeholder="如 gpt-4.1-mini / deepseek-chat" />
-          </div>
-          <div class="tool-item">
-            <label>Embedding 模型</label>
-            <input id="aiEmbeddingModelInput" placeholder="不填时可切换为本地 embedding" />
-          </div>
-          <div class="tool-item">
-            <label><input id="aiUseLocalEmbeddingInput" type="checkbox" /> 使用本地 embedding（更省事，推荐给 DeepSeek）</label>
-          </div>
-        </div>
-        <div id="aiSettingsStatusBox" class="ai-box">尚未加载 AI 配置</div>
-        <footer class="inline-actions">
-          <button id="aiSaveSettingsBtn">保存当前配置</button>
-          <button id="aiTestSettingsBtn" class="alt">测试连接</button>
-          <button id="closeAiSettingsBtn">关闭</button>
         </footer>
       </article>
     </dialog>

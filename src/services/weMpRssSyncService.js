@@ -4,7 +4,6 @@ const sqlite3 = require("sqlite3").verbose();
 const { XMLParser } = require("fast-xml-parser");
 const YAML = require("yaml");
 const articleRepo = require("../repositories/articleRepository");
-const { enqueueArticleAI } = require("./aiQueueService");
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -110,7 +109,7 @@ function parseArticleXml(xmlText, sourceName) {
 
 function buildAuthConfig(options = {}) {
   return {
-    baseUrl: (options.base_url || "http://127.0.0.1:8001").replace(/\/+$/, ""),
+    baseUrl: (options.base_url || process.env.WE_MP_RSS_URL || "http://127.0.0.1:8001").replace(/\/+$/, ""),
     username: String(options.username || "admin").trim() || "admin",
     password: String(options.password || "admin@123"),
   };
@@ -550,9 +549,6 @@ async function syncOneFeed(baseUrl, feedId, sourceName, limit, options = {}) {
 
     try {
       const result = await upsertArticle(article);
-      if (result.articleId) {
-        await enqueueArticleAI(result.articleId);
-      }
       if (result.changes === 1) inserted += 1;
       else ignored += 1;
     } catch (error) {
@@ -598,7 +594,7 @@ async function reconcileDeleteMissing(baseUrl, feed) {
 }
 
 async function syncFromWeMpRss(options = {}) {
-  const baseUrl = (options.base_url || "http://127.0.0.1:8001").replace(/\/+$/, "");
+  const baseUrl = (options.base_url || process.env.WE_MP_RSS_URL || "http://127.0.0.1:8001").replace(/\/+$/, "");
   const perFeedLimit = Math.max(1, Math.min(100, Number(options.limit || 30)));
   const refreshRemote = Boolean(options.refresh_remote);
   const syncAll = Boolean(options.sync_all);
@@ -656,7 +652,7 @@ async function syncFromWeMpRss(options = {}) {
 }
 
 async function reconcileWithWeMpRss(options = {}) {
-  const baseUrl = (options.base_url || "http://127.0.0.1:8001").replace(/\/+$/, "");
+  const baseUrl = (options.base_url || process.env.WE_MP_RSS_URL || "http://127.0.0.1:8001").replace(/\/+$/, "");
   let targetFeeds = [];
 
   if (Array.isArray(options.feed_ids) && options.feed_ids.length > 0) {

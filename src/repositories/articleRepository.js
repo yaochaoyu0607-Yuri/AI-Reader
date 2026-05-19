@@ -23,8 +23,8 @@ async function createArticle(article) {
     return run(
       `
       INSERT INTO Article
-      (title, url, publish_date, source, sync_origin, is_read, is_starred, created_at, description, content, ai_status)
-      VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?)
+      (title, url, publish_date, source, sync_origin, is_read, is_starred, created_at, description, content)
+      VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?, ?)
     `,
       [
         article.title,
@@ -35,7 +35,6 @@ async function createArticle(article) {
         createdAt,
         article.description || "",
         article.content || "",
-        article.ai_status || "pending",
       ]
     );
   }
@@ -62,7 +61,7 @@ async function createArticle(article) {
   await run(
     `
     UPDATE Article
-    SET title = ?, publish_date = ?, source = ?, sync_origin = ?, description = ?, content = ?, ai_status = ?
+    SET title = ?, publish_date = ?, source = ?, sync_origin = ?, description = ?, content = ?
     WHERE id = ?
   `,
     [
@@ -72,7 +71,6 @@ async function createArticle(article) {
       nextSyncOrigin,
       nextDescription,
       nextContent,
-      "pending",
       existing.id,
     ]
   );
@@ -195,7 +193,6 @@ async function listArticles(filter = {}) {
       publish_date,
       source,
       sync_origin,
-      ai_status,
       is_read,
       is_starred,
       created_at,
@@ -235,7 +232,6 @@ async function getArticleById(id) {
       description,
       content,
       sync_origin,
-      ai_status,
       is_read,
       is_starred,
       created_at,
@@ -274,7 +270,7 @@ async function getArticleByUrl(url) {
     `
     SELECT
       id, title, url, publish_date, source, description, content,
-      sync_origin, ai_status, is_read, is_starred, created_at
+      sync_origin, is_read, is_starred, created_at
     FROM Article
     WHERE url = ?
   `,

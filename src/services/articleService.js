@@ -3,7 +3,6 @@ const tagRepo = require("../repositories/tagRepository");
 const articleLinkRepo = require("../repositories/articleLinkRepository");
 const articleNoteRepo = require("../repositories/articleNoteRepository");
 const reflectionRepo = require("../repositories/articleReflectionRepository");
-const { enqueueArticleAI, enqueueNoteEmbedding, enqueueReflectionEmbedding } = require("./aiQueueService");
 
 function ensureArticlesPayload(payload) {
   const arr = Array.isArray(payload) ? payload : payload?.articles;
@@ -30,7 +29,6 @@ function groupByDate(articles) {
 async function importArticles(payload) {
   const articles = ensureArticlesPayload(payload);
   const result = await articleRepo.importArticles(articles);
-  await Promise.all((result.article_ids || []).map((id) => enqueueArticleAI(id)));
   return result;
 }
 
@@ -90,13 +88,11 @@ async function addTagToArticle(articleId, payload) {
 
   await articleRepo.attachTag(articleId, tag.id);
   await articleRepo.updateReadStatus(articleId, true);
-  await enqueueArticleAI(articleId);
   return getArticleDetail(articleId);
 }
 
 async function removeTagFromArticle(articleId, tagId) {
   await articleRepo.detachTag(articleId, tagId);
-  await enqueueArticleAI(articleId);
   return getArticleDetail(articleId);
 }
 
@@ -179,11 +175,7 @@ async function addArticleNote(articleId, payload) {
   if (!content) throw new Error("备注内容不能为空");
   await articleNoteRepo.createArticleNote(articleId, content);
   const notes = await articleNoteRepo.listNotesByArticleId(articleId);
-  if (notes[0]?.id) {
-    await enqueueNoteEmbedding(notes[0].id);
-  }
   await articleRepo.updateReadStatus(articleId, true);
-  await enqueueArticleAI(articleId);
   return notes;
 }
 
@@ -195,7 +187,6 @@ async function removeArticleNote(articleId, noteId) {
     throw new Error("备注不存在");
   }
   await articleNoteRepo.deleteNoteById(noteId);
-  await enqueueArticleAI(articleId);
   return listArticleNotes(articleId);
 }
 
@@ -227,9 +218,7 @@ async function saveArticleReflection(articleId, payload) {
   const content = (payload?.content || "").trim();
   if (!content) throw new Error("感想不能为空");
   await reflectionRepo.upsertReflection(articleId, content);
-  await enqueueReflectionEmbedding(articleId);
   await articleRepo.updateReadStatus(articleId, true);
-  await enqueueArticleAI(articleId);
   return getArticleReflection(articleId);
 }
 

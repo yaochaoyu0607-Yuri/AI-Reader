@@ -13,7 +13,7 @@ function fail(res, error, code = 400) {
 
 router.get("/we-mp-rss/feeds", async (req, res) => {
   try {
-    const baseUrl = req.query.base_url || "http://127.0.0.1:8001";
+    const baseUrl = req.query.base_url || process.env.WE_MP_RSS_URL || "http://127.0.0.1:8001";
     const data = await weMpRssSyncService.listFeeds(baseUrl.replace(/\/+$/, ""));
     return ok(res, data);
   } catch (error) {
