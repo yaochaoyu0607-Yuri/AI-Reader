@@ -67,8 +67,16 @@ app.use("/api/articles", articleController);
 app.use("/api/tags", tagController);
 app.use("/api/integrations", integrationController);
 
+app.use((req, res, next) => {
+  if (req.method === "GET" && req.path === "/index.html" && !(req.session && req.session.authed)) {
+    return res.redirect("/login.html");
+  }
+  next();
+});
+
 app.use(
   express.static(path.join(__dirname, "../public"), {
+    index: false,
     setHeaders: (res, filePath) => {
       if (/\.(html|js|css)$/.test(filePath)) {
         res.set("Cache-Control", "no-store");
