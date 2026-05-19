@@ -897,10 +897,22 @@ async function performSyncFlow({ quick = false } = {}) {
     return result;
   };
 
-  const status = await fetchWeMpRssAuthStatus();
-  if (status.authorized) {
-    renderAuthStatus("已授权", "ok");
-    return executeSync();
+  try {
+    const result = await executeSync();
+    const needsAuth =
+      result &&
+      result.refresh_remote &&
+      result.refreshed_feeds === 0 &&
+      result.inserted === 0 &&
+      result.ignored === 0;
+    if (!needsAuth) {
+      renderAuthStatus("已授权", "ok");
+      return result;
+    }
+  } catch (error) {
+    if (!/未授权|未登录|auth|login/i.test(error.message || "")) {
+      throw error;
+    }
   }
 
   renderAuthStatus("待扫码授权", "warn");
