@@ -5,9 +5,9 @@ RUN sed -i 's|deb.debian.org|mirrors.tencent.com|g; s|security.debian.org|mirror
  && apt-get install -y --no-install-recommends python3 make g++ ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
-RUN npm config set registry https://registry.npmmirror.com \
- && npm config set sqlite3_binary_host_mirror https://npmmirror.com/mirrors/sqlite3 \
- && npm ci --omit=dev
+ENV npm_config_registry=https://registry.npmmirror.com \
+    npm_config_sqlite3_binary_host_mirror=https://npmmirror.com/mirrors/sqlite3
+RUN npm ci --omit=dev
 
 FROM node:20-bookworm-slim
 WORKDIR /app
