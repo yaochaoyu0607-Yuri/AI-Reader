@@ -1,8 +1,11 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
-RUN apk add --no-cache python3 make g++
+RUN sed -i 's#dl-cdn.alpinelinux.org#mirrors.tencent.com#g' /etc/apk/repositories \
+ && apk add --no-cache python3 make g++
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm config set registry https://registry.npmmirror.com \
+ && npm config set sqlite3_binary_host_mirror https://npmmirror.com/mirrors/sqlite3 \
+ && npm ci --omit=dev
 
 FROM node:20-alpine
 WORKDIR /app
